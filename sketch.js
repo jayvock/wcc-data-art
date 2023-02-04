@@ -1,3 +1,9 @@
+// Data visualisation using images scraped from a christianty art archive
+// Jamie Shilvock
+
+// NOTE: It scrapes some dead links so throws quite a few errors in the log, give it a few seconds and it will start up 
+
+
 let int = 0;
 let jsonPath = './json/superArray.json';
 let data = {};
