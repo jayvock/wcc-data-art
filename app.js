@@ -1,7 +1,8 @@
 const https = require('https');
 const JSSoup = require('jssoup').default;
 const fs = require('fs');
-const url = "";//FIRST, find a url of a page on Wikipedia that you are interested in
+var pageNum = 1;
+var url = "https://diglib.library.vanderbilt.edu/diglib-displayindex.pl?SID=20230203780841546&pagenumber=" + pageNum + "&code=act&";//FIRST, find a url of a page on Wikipedia that you are interested in
 const jsonPath = "./json/"; 
 const imagePath = "./images/"; 
 const name = "";
@@ -22,7 +23,7 @@ function getAllImages(soupTag){
         // if there is an href attribute let's get it
         if('src' in attrs){
             let src = attrs.src;
-            if(src.indexOf("wiki/Special:") == -1){ //these are not images
+            if(src.indexOf("wiki/Special:") == -1 && src.indexOf("noimage") == -1){ //these are not images
                 if(src.indexOf("https:") == -1){
                     src = "https:"+src;
                 }
@@ -60,9 +61,9 @@ function recursiveDownload(imageUrlArray,i){
     
     //to deal with the asynchronous nature of a get request we get the next image on successful file save
     if (i < imageUrlArray.length) {
-  
         //get the image url
         https.get(imageUrlArray[i], (res) => {
+
         
             //200 is a successful https get request status code
             if (res.statusCode === 200) {
@@ -83,13 +84,20 @@ function recursiveDownload(imageUrlArray,i){
 
         });
 
+        // when this has finished downloading all images from the page, iterate the page number, check that it hasn't
+    } else {
+        pageNum++;
+        url = "https://diglib.library.vanderbilt.edu/diglib-displayindex.pl?SID=20230203780841546&pagenumber=" + pageNum + "&code=act&";
+        if (pageNum<90) {
+        urlRequest();
+        }
     }
 }
 
 //pass in Plain Old Javascript Object that's formatted as JSON
-function writeJSON(data){
+function writeJSON(data, i){
     try {
-        let path = jsonPath+name+".json";
+        let path = jsonPath+name+i+".json";
         fs.writeFileSync(path, JSON.stringify(data, null, 2), "utf8");
         console.log("JSON file successfully saved");
     } catch (error) {
@@ -107,15 +115,18 @@ function createSoup(document){
     }; 
 
     // let main = soup.find('main');//only get the content from the main tag of the page
-    let bodyContent = soup.find('div', { id: 'bodyContent' });
+    let bodyContent = soup.find('div', { id: 'pageFrame' });
     let images = getAllImages(bodyContent);
 
-    data.content = {
+    // webpage im querying has a dead link for the first image, shift removes that first url link
+    images.shift();
+
+    data.url = {
         "imageNames": getImageNames(images) //store the array of image names in json file
     };
         
     //output json
-    writeJSON(data);
+    writeJSON(data, pageNum);
 
     //download all images
     recursiveDownload(images, 0);
@@ -123,6 +134,8 @@ function createSoup(document){
 
 
 //Request the url
+function urlRequest(){
+    console.log(url);
 https.get(url, (res) => {
     console.log('statusCode:', res.statusCode);
     console.log('headers:', res.headers);
@@ -140,4 +153,6 @@ https.get(url, (res) => {
 }).on('error', (e) => {
     console.error(e);
 });
+}
 
+urlRequest();
